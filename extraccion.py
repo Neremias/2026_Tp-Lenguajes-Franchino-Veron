@@ -36,12 +36,32 @@ class FuncionExtraida:
 
 
 def extraer_funciones(directorio):
-    """Devuelve la lista de FuncionExtraida de todos los .py bajo `directorio`.
+    funciones_extraidas = {}
+    ruta = Path(directorio)
+    contador = 1
 
-    TODO: recorrer con Path.rglob("*.py"), parsear con ast.parse y manejar
-    SyntaxError sin cortar la ejecución.
-    """
-    raise NotImplementedError
+    if not ruta.is_dir():
+        return "El directorio no existe"
+    
+    for archivo in ruta.rglob("*.py"): #busco recursivamente en el directorio archivos con .py
+        if not archivo.is_file():
+            continue #verifico que sea un archivo. 
+            
+        try:
+            cadena = archivo.read_text(encoding="utf-8") #lee el archivo y lo guarda en memoria. 
+            arbol = ast.parse(cadena, filename=str(archivo)) #Nodo Raiz: Ast.Module
+                    
+        except (SyntaxError, UnicodeDecodeError) as e:
+            print(f"No se pudo parsear {archivo}: {e}")
+            continue  # Salta al siguiente archivo si falla
+
+        #Ahora, recorremos el árbol parseado desde el nodo raiz. 
+        for nodo in ast.walk(arbol):
+            if type(nodo) == ast.FunctionDef or type(nodo) == ast.AsyncFunctionDef:
+                funcion = FuncionExtraida(nodo.name, archivo,nodo.end_lineno - nodo.lineno,nodo)
+                funciones_extraidas[f"F{contador}:"] = funcion 
+                contador += 1
+    return funciones_extraidas
 
 
 def extraer_funciones_de_codigo(codigo, nombre_archivo="<pegado>"):
