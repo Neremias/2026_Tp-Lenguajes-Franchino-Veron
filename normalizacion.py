@@ -1,39 +1,48 @@
-"""
-normalizacion.py
-----------------
-
-Qué hace:
-    Convierte el AST de una función en una versión normalizada, donde los
-    identificadores de variables y parámetros pasan a VAR1, VAR2... y los
-    literales (números, strings) pasan a LIT. Así dos funciones con la misma
-    estructura pero distintos nombres quedan idénticas.
-
-Entrada:  nodo ast.FunctionDef (o AsyncFunctionDef).
-Salida:   AST normalizado (sin modificar el original: trabajar sobre una copia
-          con copy.deepcopy).
-
-Decisiones de diseño (completar a medida que se toman):
-    - VAR se numera por orden de primera aparición dentro de CADA función
-      (un diccionario nombre -> VARn nuevo por función).
-    - El nombre de la propia función NO influye en la comparación (req. 4.2).
-    - Docstrings: (se descartan / se reemplazan por LIT, y por qué).
-    - Nombres de funciones llamadas (len, range, print...) y atributos
-      (.append): (se conservan / se normalizan, y por qué).
-    - Literales: todos a LIT salvo que el grupo justifique lo contrario.
-    - Casos borde: lambdas, comprensiones, *args/**kwargs, nombres globales.
-
-Relación con el enunciado: requisito 4.2 (Normalización).
-Herramienta sugerida: ast.NodeTransformer.
-"""
-
 import ast
-import copy
 
+def preorder(nodo, lista_nodos=None):
+    if(lista_nodos is None):
+        lista_nodos = []
 
-def normalizar(nodo_funcion):
-    """Devuelve una copia normalizada del AST de una función.
+    lista_nodos.append(nodo)
 
-    TODO: implementar un NodeTransformer con visit_Name, visit_arg,
-    visit_Constant, etc., usando un mapa nombre -> VARn por función.
-    """
-    raise NotImplementedError
+    for hijo in ast.iter_child_nodes(nodo):
+        preorder(hijo, lista_nodos)
+
+    return lista_nodos
+
+def normalizar_arbol(nodo_ast):
+    dic_func = {}
+    i = 0
+    for nodo in ast.walk(nodo_ast): 
+        # Argumentos
+        if isinstance(nodo, ast.arg):
+            if nodo.arg not in dic_func:
+                i += 1
+                dic_func[nodo.arg] = f"Var{i}"
+            nodo.arg = dic_func[nodo.arg]
+
+        # Variables
+        elif isinstance(nodo, ast.Name):
+            if isinstance(nodo.ctx, ast.Store):
+                if nodo.id not in dic_func:
+                    i += 1
+                    dic_func[nodo.id] = f"Var{i}"
+                nodo.id = dic_func[nodo.id]
+
+            elif isinstance(nodo.ctx, ast.Load):
+                if nodo.id in dic_func:
+                    nodo.id = dic_func[nodo.id]
+
+        # Constantes
+        elif isinstance(nodo, ast.Constant):
+            if isinstance(nodo.value, bool):
+                nodo.value = "LIT_BOOL"
+            elif isinstance(nodo.value, (int, float)):
+                nodo.value = "LIT_NUM"
+            elif isinstance(nodo.value, str):
+                nodo.value = "LIT_STR"
+            else:
+                nodo.value = "LIT_OTRO"
+            
+    return nodo_ast, dic_func
