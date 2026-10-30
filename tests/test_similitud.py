@@ -1,56 +1,29 @@
-"""
-test_similitud.py
------------------
-Suite mínima exigida por el enunciado (sección 5).
-
-Qué se prueba:
-    Se toman dos funciones escritas como texto, se pasan por TODO el pipeline
-    (AST -> normalización -> serialización -> similitud) y se mira el puntaje.
-
-    - Casos POSITIVOS: funciones clonadas (variables renombradas / líneas
-      reordenadas). El puntaje tiene que ser MAYOR O IGUAL al umbral, es decir,
-      el sistema las tiene que marcar como "candidato a duplicado".
-    - Casos NEGATIVOS: funciones claramente distintas. El puntaje tiene que ser
-      MENOR al umbral, es decir, el sistema NO las tiene que marcar como clon.
-
-Cómo correrlos (desde la carpeta raíz del proyecto):
-    pytest -v
-"""
-
 import ast
-
-# Estos módulos están en la carpeta "Aprendizaje_modulo_extraccion".
-# Python los encuentra porque conftest.py agrega esa carpeta al sys.path.
 from normalizacion import normalizar_arbol
 from serializacion import serializar
 from similitud import similitud_hibrida, UMBRAL_SIMILITUD
 
 
-# =============================================================================
+
 # Funciones auxiliares
-# =============================================================================
-
+#Convierte texto a arbol de ast, le aplica normalizacion y luego serializa
 def convertir_a_tokens(codigo):
-    """Recibe el código de UNA función (como texto) y devuelve su lista de tokens."""
-    arbol = ast.parse(codigo)        # texto -> AST (el nodo raíz es un Module)
-    funcion = arbol.body[0]          # la primera sentencia del Module es la función
-    funcion_normalizada, _ = normalizar_arbol(funcion)   # variables -> Var1, Var2...
-    return serializar(funcion_normalizada)               # AST -> lista de tokens
+    
+    arbol = ast.parse(codigo)        
+    funcion = arbol.body[0]          
+    funcion_normalizada, _ = normalizar_arbol(funcion)   
+    return serializar(funcion_normalizada)               
 
-
+#Devuelve la similitud
 def puntaje(codigo_a, codigo_b):
-    """Devuelve la similitud (entre 0.0 y 1.0) entre dos funciones."""
     tokens_a = convertir_a_tokens(codigo_a)
     tokens_b = convertir_a_tokens(codigo_b)
     resultado = similitud_hibrida(tokens_a, tokens_b)
     return resultado["promedio"]
 
 
-# =============================================================================
-# Funciones de ejemplo para los casos POSITIVOS (clones)
-# =============================================================================
+# Funciones de ejemplo para los casos POSITIVOS
 
-# Función original: suma los precios de una lista y aplica un factor.
 TOTAL_ORIGINAL = '''
 def total(items, rate):
     s = 0
@@ -59,8 +32,7 @@ def total(items, rate):
     return s * rate
 '''
 
-# Clon: es EXACTAMENTE el mismo código, pero con otros nombres
-# (la función, los parámetros y las variables cambiaron de nombre).
+# Clon
 TOTAL_RENOMBRADO = '''
 def calcular(productos, factor):
     r = 0
@@ -84,7 +56,7 @@ def estadisticas(numeros):
     return promedio, maximo
 '''
 
-# Clon: mismo código, pero DENTRO del for se cambió el orden de las líneas
+# Clon
 # (el "if" pasó de estar al principio a estar al final).
 ESTADISTICAS_REORDENADO = '''
 def estadisticas(numeros):
@@ -116,9 +88,7 @@ def resumen(valores):
 '''
 
 
-# =============================================================================
 # Funciones de ejemplo para los casos NEGATIVOS (claramente distintas)
-# =============================================================================
 
 # Suma los elementos de una lista con un for.
 SUMA = '''
@@ -148,35 +118,22 @@ def fact(n):
     return n * fact(n - 1)
 '''
 
-# =============================================================================
 # Casos POSITIVOS: el sistema TIENE que detectarlos como clones
-# =============================================================================
 
 def test_positivo_variables_renombradas():
-    """Si solo cambian los nombres, después de normalizar quedan iguales.
-
-    La normalización reemplaza todos los nombres por Var1, Var2, ... así que
-    las dos funciones generan la misma lista de tokens -> puntaje 1.0 (100%).
-    """
     resultado = puntaje(TOTAL_ORIGINAL, TOTAL_RENOMBRADO)
 
     assert resultado == 1.0
 
 
 def test_positivo_lineas_reordenadas():
-    """Si se cambia el orden de algunas líneas, el puntaje baja un poco,
-    pero tiene que seguir superando el umbral (se detecta como clon)."""
     resultado = puntaje(ESTADISTICAS_ORIGINAL, ESTADISTICAS_REORDENADO)
 
-    assert resultado >= UMBRAL_SIMILITUD   # se detecta como clon...
-    assert resultado < 1.0                 # ...pero no son idénticas
+    assert resultado >= UMBRAL_SIMILITUD   
+    assert resultado < 1.0                 
 
 
 def test_positivo_reordenado_y_renombrado():
-    """Combinando los dos cambios (renombrar + reordenar) también se detecta.
-
-    Da el mismo puntaje que solo reordenar, porque renombrar no afecta nada.
-    """
     resultado = puntaje(ESTADISTICAS_ORIGINAL, ESTADISTICAS_REORDENADO_Y_RENOMBRADO)
     solo_reordenado = puntaje(ESTADISTICAS_ORIGINAL, ESTADISTICAS_REORDENADO)
 
@@ -184,19 +141,15 @@ def test_positivo_reordenado_y_renombrado():
     assert resultado == solo_reordenado
 
 
-# =============================================================================
 # Casos NEGATIVOS: el sistema NO tiene que detectarlos como clones
-# =============================================================================
 
 def test_negativo_suma_vs_parseo():
-    """Una suma de números y un parseo de strings no se parecen en nada."""
     resultado = puntaje(SUMA, PARSEO)
 
     assert resultado < UMBRAL_SIMILITUD
 
 
 def test_negativo_iterativa_vs_recursiva():
-    """Un for que acumula y una función recursiva tienen estructuras distintas."""
     resultado = puntaje(SUMA, FACTORIAL_RECURSIVO)
 
     assert resultado < UMBRAL_SIMILITUD
