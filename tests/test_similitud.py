@@ -87,6 +87,64 @@ def resumen(valores):
     return media, mayor
 '''
 
+PROCESAR_ORIGINAL = '''
+def procesar(valores):
+    suma = 0
+    cantidad = 0
+    positivos = 0
+    maximo = valores[0]
+    for valor in valores:
+        suma += valor
+        cantidad += 1
+        if valor > 0:
+            positivos += 1
+        if valor > maximo:
+            maximo = valor
+    promedio = suma / cantidad
+    return promedio, positivos, maximo
+'''
+
+PROCESAR_REORDENADO = '''
+def procesar(valores):
+    suma = 0
+    cantidad = 0
+    positivos = 0
+    maximo = valores[0]
+    for valor in valores:
+        cantidad += 1
+        if valor > maximo:
+            maximo = valor
+        suma += valor
+        if valor > 0:
+            positivos += 1
+    promedio = suma / cantidad
+    return promedio, positivos, maximo
+'''
+
+FUNCION_CORTA_ORIGINAL = '''
+def doble(numero):
+    return numero * 2
+'''
+
+FUNCION_CORTA_REORDENADA = '''
+def doble(numero):
+    return 2 * numero
+'''
+
+RESUMEN_ORIGINAL = '''
+def resumen(d):
+    a = len(d)
+    b = sum(d)
+    return b / a
+'''
+
+RESUMEN_VARIABLES_REORDENADAS = '''
+def resumen(d):
+    b = sum(d)
+    a = len(d)
+    return b / a
+'''
+
 
 # Funciones de ejemplo para los casos NEGATIVOS (claramente distintas)
 
@@ -141,6 +199,13 @@ def test_positivo_reordenado_y_renombrado():
     assert resultado == solo_reordenado
 
 
+def test_positivo_funciones_con_varias_lineas_reordenadas():
+    resultado = puntaje(PROCESAR_ORIGINAL, PROCESAR_REORDENADO)
+
+    assert resultado >= UMBRAL_SIMILITUD
+    assert resultado < 1.0
+
+
 # Casos NEGATIVOS: el sistema NO tiene que detectarlos como clones
 
 def test_negativo_suma_vs_parseo():
@@ -151,5 +216,17 @@ def test_negativo_suma_vs_parseo():
 
 def test_negativo_iterativa_vs_recursiva():
     resultado = puntaje(SUMA, FACTORIAL_RECURSIVO)
+
+    assert resultado < UMBRAL_SIMILITUD
+
+
+def test_limitacion_funciones_cortas_equivalentes():
+    resultado = puntaje(FUNCION_CORTA_ORIGINAL, FUNCION_CORTA_REORDENADA)
+
+    assert resultado < UMBRAL_SIMILITUD
+
+
+def test_limitacion_orden_de_variables_reordenadas():
+    resultado = puntaje(RESUMEN_ORIGINAL, RESUMEN_VARIABLES_REORDENADAS)
 
     assert resultado < UMBRAL_SIMILITUD
